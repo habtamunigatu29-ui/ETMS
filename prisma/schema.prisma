@@ -1,0 +1,294 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+model User {
+  id              String   @id @default(uuid())
+  username        String   @unique
+  email           String   @unique
+  full_name       String
+  role            String   // SYSTEM_ADMIN, HR_MANAGER, DEPARTMENT_HEAD, MENTOR, APPRENTICE, REPORTING_OFFICER
+  department_id   String?
+  department_name String?
+  phone           String
+  password_hash   String?
+  is_active       Boolean  @default(true)
+  last_login      DateTime?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Relations
+  department      Department? @relation("DepartmentUsers", fields: [department_id], references: [id])
+  mentorAssignments Application[] @relation("MentorAssignments")
+  evaluations     Evaluation[] @relation("EvaluatorEvaluations")
+  tasks_assigned  ApprenticeTask[] @relation("MentorTasks")
+  audit_logs      AuditLog[]
+  
+  // FIX 4: Added relation for Notifications
+  notifications   NotificationItem[] @relation("RecipientNotifications")
+
+  @@index([email])
+  @@index([username])
+  @@index([role])
+  @@index([department_id])
+  @@map("users")
+}
+
+model Applicant {
+  id              String   @id @default(uuid())
+  app_id          String   @unique // e.g. APP-2026-0101
+  full_name       String
+  email           String   @unique
+  phone           String
+  university      String
+  field_of_study  String
+  gpa             Float
+  skills          String
+  cv_name         String?
+  transcript_name String?
+  id_name         String?
+  recommendation_name String?
+  applied_at      DateTime @default(now())
+  status          String   @default("PENDING_SCREENING") // PENDING_SCREENING, ACTIVE, COMPLETED, DROPPED_OUT
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  // Relations
+  application     Application?
+  attendance      AttendanceRecord[]
+  tasks           ApprenticeTask[]
+  evaluations     Evaluation[]
+  certificates     Certificate[]
+
+  @@index([app_id])
+  @@index([email])
+  @@index([status])
+  @@index([university])
+}
+
+model Application {
+  id                String   @id @default(uuid())
+  applicant_id      String   @unique
+  status            String   @default("DRAFT") // DRAFT, SUBMITTED, PENDING_SCREENING, UNDER_SCREENING, SCREENED, REQUESTS_ADDITIONAL_INFO, PENDING_APPROVAL, APPROVED, REJECTED, WAITLISTED, ASSIGNED, ACTIVE, COMPLETED, DROPPED_OUT
+  department_id     String?
+  department_name   String?
+  mentor_id         String?
+  mentor_name       String?
+  screening_score   Float?
+  screening_notes   String?
+  rejection_reason  String?
+  submitted_at      DateTime?
+  screened_at       DateTime?
+  approved_at       DateTime?
+  assigned_at       DateTime?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  applicant         Applicant @relation(fields: [applicant_id], references: [id])
+  department        Department? @relation(fields: [department_id], references: [id])
+  mentor            User? @relation("MentorAssignments", fields: [mentor_id], references: [id])
+
+  @@index([applicant_id])
+  @@index([status])
+  @@index([department_id])
+  @@index([mentor_id])
+  @@index([screening_score])
+}
+
+model Department {
+  id                String   @id @default(uuid())
+  name              String
+  code              String   @unique
+  description       String
+  max_apprentices   Int
+  current_apprentices Int    @default(0)
+  head_id           String?
+  head_name         String?
+  location          String
+  required_skills    String   // JSON array
+  is_active         Boolean  @default(true)
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  users             User[] @relation("DepartmentUsers")
+  applications      Application[]
+  courses           Course[]
+
+  @@index([code])
+  @@index([head_id])
+}
+
+model Course {
+  id                String   @id @default(uuid())
+  name              String
+  code              String   @unique // <--- FIX 2: Added @unique here
+  description       String
+  department_id     String
+  duration_weeks    Int
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  department        Department @relation(fields: [department_id], references: [id])
+
+  @@index([department_id])
+}
+
+model AttendanceRecord {
+  id                String   @id @default(uuid())
+  apprentice_id     String
+  apprentice_name   String
+  date              String   // YYYY-MM-DD
+  check_in_time     DateTime?
+  check_out_time    DateTime?
+  method            String   // BIOMETRIC, QR_CODE, GPS_MOBILE
+  lat               Float?
+  lng               Float?
+  location_name     String?
+  status            String   // present, late, absent
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  apprentice        Applicant @relation(fields: [apprentice_id], references: [id])
+
+  @@index([apprentice_id])
+  @@index([date])
+  @@index([status])
+}
+
+model ApprenticeTask {
+  id                String   @id @default(uuid())
+  apprentice_id     String
+  apprentice_name   String
+  mentor_id         String
+  mentor_name       String
+  title             String
+  description       String
+  due_date          String   // YYYY-MM-DD
+  status            String   @default("PENDING") // PENDING, IN_PROGRESS, COMPLETED, VERIFIED
+  evidence_notes    String?
+  evidence_filename String?
+  submission_date   DateTime?
+  verification_date DateTime?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  apprentice        Applicant @relation(fields: [apprentice_id], references: [id])
+  mentor            User @relation("MentorTasks", fields: [mentor_id], references: [id])
+
+  @@index([apprentice_id])
+  @@index([mentor_id])
+  @@index([status])
+  @@index([due_date])
+}
+
+model Evaluation {
+  id                String   @id @default(uuid())
+  apprentice_id     String
+  apprentice_name   String
+  evaluator_id      String
+  evaluator_name    String
+  evaluation_type   String   // mid_term, final
+  technical_score   Int      // 1-10
+  communication_score Int    // 1-10
+  punctuality_score Int      // 1-10
+  teamwork_score    Int      // 1-10
+  problem_solving_score Int @map("initiative_score") // 1-10
+  overall_score     Float
+  passed            Boolean
+  comments          String?
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  apprentice        Applicant @relation(fields: [apprentice_id], references: [id])
+  evaluator         User @relation("EvaluatorEvaluations", fields: [evaluator_id], references: [id])
+
+  @@index([apprentice_id])
+  @@index([evaluator_id])
+  @@index([evaluation_type])
+}
+
+model Certificate {
+  id                String   @id @default(uuid())
+  apprentice_id     String
+  cert_number       String   @unique
+  issue_date        DateTime @default(now())
+  overall_score     Float
+  attendance_rate   String
+  verification_url  String
+  created_at        DateTime @default(now())
+  updated_at        DateTime @updatedAt
+
+  // Relations
+  apprentice        Applicant @relation(fields: [apprentice_id], references: [id])
+
+  @@index([apprentice_id])
+  @@index([cert_number])
+}
+
+// ============================================
+// Recipient relationship
+// ============================================
+model NotificationItem {
+  id                String   @id @default(uuid())
+  recipient_id      String
+  recipient_name    String
+  type              String   // SMS, EMAIL, IN_APP
+  subject           String
+  message           String
+  sent_at           DateTime @default(now())
+  is_read           Boolean  @default(false)
+
+  // FIX 4: Added the Foreign Key Relation
+  recipient         User    @relation("RecipientNotifications", fields: [recipient_id], references: [id])
+
+  @@index([recipient_id])
+  @@index([type])
+  @@index([sent_at])
+}
+
+model AuditLog {
+  id                String   @id @default(uuid())
+  user_id           String
+  user_name         String
+  user_role         String
+  action            String
+  entity_type       String
+  entity_id         String
+  details           String
+  timestamp         DateTime @default(now())
+
+  // Relations
+  user              User @relation(fields: [user_id], references: [id])
+
+  @@index([user_id])
+  @@index([action])
+  @@index([timestamp])
+}
+
+model ScreeningCriteriaConfig {
+  id                String   @id @default(uuid())
+  min_gpa           Float    @default(3.0)
+  passing_score     Int      @default(60)
+  gpa_weight        Int      @default(30)
+  field_weight      Int      @default(20)
+  university_weight Int      @default(15)
+  skills_weight     Int      @default(15)
+  recommendation_weight Int @default(10)
+  cv_weight         Int      @default(10)
+  updated_at        DateTime @updatedAt
+}

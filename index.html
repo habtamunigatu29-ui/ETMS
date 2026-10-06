@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- Content Security Policy: Allows connections back to 'self' (localhost:3000) and the development websocket (localhost:24678) -->
+    <meta http-equiv="Content-Security-Policy" content="connect-src 'self' ws://localhost:24678">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>My Google AI Studio App</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

@@ -1,0 +1,6 @@
+{
+  "name": "ET-AMS - Ethio Telecom Apprenticeship Management System",
+  "description": "Enterprise Apprenticeship Management System for Ethio Telecom featuring full 6-phase lifecycle tracking, automated screening, department/mentor assignment, QR/GPS attendance, evaluations, digital certificates, and multi-role dashboards.",
+  "requestFramePermissions": ["camera", "geolocation"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
